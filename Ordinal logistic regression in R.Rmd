@@ -1,0 +1,77 @@
+# ORDINAL LOGISTIC REGRESSION USING THE `ordinal` PACKAGE
+
+## **LOAD LIBRARIES**
+
+```{r}
+library(ggstatsplot)
+library(ordinal)
+library(pomcheckr)
+library(gtsummary)
+```
+
+## **ATTACH DATA**
+
+```{r}
+df <- ordinal::wine
+df$temp <- relevel(df$temp, ref="warm")
+df$contact <- relevel(df$contact, ref="no")
+attach(df)
+View(df)
+?ordinal::wine
+```
+
+## **EXPLORATORY & DESCRIPTIVE ANALYSIS**
+
+```{r}
+tbl_summary(df)
+
+tcb <- with(df, temp:contact:bottle)[drop=T]
+xtabs(response ~ tcb + judge, data = df)
+
+with(df, {tcb <- temp:contact:bottle
+  tcb <- tcb[drop=T]
+  table(tcb, rating)})
+
+grouped_ggbetweenstats(data=df, x=contact, y=response, grouping.var=temp, plot.type="box", type="nonparametric", pairwise.display="all")
+
+grouped_ggbetweenstats(data=df, x=temp, y=response, grouping.var=contact, plot.type="box", type="nonparametric", pairwise.display="all")
+```
+
+## **ORDINAL REGRESSION ASSUMPTIONS**
+
+1.  The dependent variable is measured on an ordinal level.
+
+2.  Independent variables are either continious, categorical or ordinal.
+
+3.  No multicollinearity - two or more independent variables should not be highly correlated with each other.
+
+4.  Proportional Odds - each independent variable has an identical effect at each cumulative split of the ordinal dependent variable.
+
+    ```{r}
+    pomcheck(rating ~ temp*contact, data=df)
+    plot(pomcheck(rating ~ temp*contact, data=df))
+    ```
+
+## **UNADJUSTED MODEL**
+
+```{r}
+fit1 <- clm(rating ~ temp + contact + temp*contact, data=df)
+anova(fit1)
+emmeans(fit1, pairwise ~ temp*contact)
+grouped_ggbarstats(data=df, x=temp, y=rating, grouping.var=contact)
+```
+
+## ADJUSTED MODEL
+
+```{r}
+fit2 <- clm(rating ~ temp*contact + bottle + judge, data=df)
+anova(fit2)
+coef(fit2)
+emmeans(fit2, pairwise ~ temp*contact)
+```
+
+## COMPARE MODELS
+
+```{r}
+AIC(fit1, fit2)
+```
